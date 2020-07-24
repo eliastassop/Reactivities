@@ -20,7 +20,7 @@ namespace API
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
-            
+
         }
 
         public IConfiguration Configuration { get; }
@@ -32,7 +32,16 @@ namespace API
             {
                 opt.UseSqlite(Configuration.GetConnectionString("DefaultConnection"));
             });
-            
+            services.AddCors(opt =>
+            {
+                opt.AddPolicy("CorsPolicy", policy =>
+                {
+                    policy.AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .WithOrigins("http://localhost:3000");
+
+                });
+            });
             services.AddControllers();
         }
 
@@ -45,6 +54,13 @@ namespace API
             }
 
             // app.UseHttpsRedirection();
+
+            app.UseCors("CorsPolicy");
+            //.net core 3.0 code have to add below !!!
+            // app.UseEndpoints(endpoints =>
+            // {
+            //     endpoints.MapControllers();
+            // });
 
             app.UseRouting();
 
