@@ -1,7 +1,7 @@
 import React from "react";
-import { Card, Image, Icon, Button } from "semantic-ui-react";
+import { Card, Image, Button } from "semantic-ui-react";
 import { IActivity } from "../../../app/models/activity";
-import ActivityDashboard from "../dashboard/ActivityDashboard";
+
 
 interface IProps {
   activity: IActivity;
