@@ -2,22 +2,41 @@ import { observable, action, computed, configure, runInAction } from "mobx";
 import { createContext, SyntheticEvent } from "react";
 import { IActivity } from "../models/activity";
 import agent from "../api/agent";
-
+// when i see proxy in console.log an array thats because they are observables
 configure({ enforceActions: "always" });
 
 class ActivityStore {
   @observable activityRegistry = new Map();
- 
+
   @observable activity: IActivity | null = null;
   @observable loadingInitial = false;
-  
+
   @observable submitting = false;
   @observable target = "";
 
   @computed get activitiesByDate() {
-    //   iterable of values in the map then add to array
-    return Array.from(this.activityRegistry.values()).sort(
+    return this.groupActivitiesByDate(
+      Array.from(this.activityRegistry.values())
+    );
+  }
+
+  // take this array activityRegistry.values() and constract a new group of arrays
+  // where each unique day has an array of activities,
+  //so unique date acts as a key inside a new object thats gonna have an array of activities as a value
+
+  groupActivitiesByDate(activities: IActivity[]) {
+    const sortedActivities = activities.sort(
       (a, b) => Date.parse(a.date) - Date.parse(b.date)
+    );
+    //return sortedActivities;
+    return Object.entries(
+      sortedActivities.reduce((activities, activity) => {
+        const date = activity.date.split("T")[0];
+        activities[date] = activities[date]
+          ? [...activities[date], activity]
+          : [activity];
+        return activities;
+      }, {} as { [key: string]: IActivity[] })
     );
   }
 
@@ -35,6 +54,7 @@ class ActivityStore {
         });
         this.loadingInitial = false;
       });
+      //console.log(this.groupActivitiesByDate(activities));
     } catch (error) {
       runInAction("load activities error", () => {
         this.loadingInitial = false;
@@ -132,31 +152,36 @@ class ActivityStore {
       console.log(error);
     }
   };
-
 }
 
 export default createContext(new ActivityStore());
 
+// REMOVED WHEN USED REACT ROUTER TO BROWSE AROUND DIF COMPONENTS
+// @action openCreateForm = () => {
+//   this.editMode = true;
+//   this.activity = null;
+// };
+// @action openEditForm = (id: string) => {
+//   this.activity = this.activityRegistry.get(id);
+//   this.editMode = true;
+// };
 
-  // REMOVED WHEN USED REACT ROUTER TO BROWSE AROUND DIF COMPONENTS
-  // @action openCreateForm = () => {
-  //   this.editMode = true;
-  //   this.activity = null;
-  // };
-  // @action openEditForm = (id: string) => {
-  //   this.activity = this.activityRegistry.get(id);
-  //   this.editMode = true;
-  // };
+// @action cancelSelectedActivity = () => {
+//   this.activity = null;
+// };
 
-  // @action cancelSelectedActivity = () => {
-  //   this.activity = null;
-  // };
+// @action cancelFormOpen = () => {
+//   this.editMode = false;
+// };
 
-  // @action cancelFormOpen = () => {
-  //   this.editMode = false;
-  // };
+// @action selectActivity = (id: string) => {
+//   this.activity = this.activityRegistry.get(id);
+//   this.editMode = false;
+// };
 
-  // @action selectActivity = (id: string) => {
-  //   this.activity = this.activityRegistry.get(id);
-  //   this.editMode = false;
-  // };
+// @computed get activitiesByDate() {
+//      iterable of values in the map then add to array
+//   return Array.from(this.activityRegistry.values()).sort(
+//     (a, b) => Date.parse(a.date) - Date.parse(b.date)
+//   );
+// }
