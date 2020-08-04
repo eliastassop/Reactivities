@@ -1,6 +1,6 @@
-import React, { useState, FormEvent, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { Segment, Form, Button, Grid } from "semantic-ui-react";
-import { IActivity, IActivityFormValues } from "../../../app/models/activity";
+import { ActivityFormValues } from "../../../app/models/activity";
 import { v4 as uuid } from "uuid";
 import ActivityStore from "../../../app/stores/activityStore";
 import { observer } from "mobx-react-lite";
@@ -9,10 +9,30 @@ import { Form as FinalForm, Field } from "react-final-form";
 import TextInput from "../../../app/common/form/TextInput";
 import TextAreaInput from "../../../app/common/form/TextAreaInput";
 import SelectInput from "../../../app/common/form/SelectInput";
-import {category} from "../../../app/common/options/categoryOptions";
+import { category } from "../../../app/common/options/categoryOptions";
 import DateInput from "../../../app/common/form/DateInput";
-import {combineDateAndTime} from "../../../app/common/util/util"
+import { combineDateAndTime } from "../../../app/common/util/util";
+import {
+  combineValidators,
+  isRequired,
+  composeValidators,
+  hasLengthGreaterThan,
+} from "revalidate";
 
+const validate = combineValidators({
+  title: isRequired({ message: "The event tittle is required" }),
+  category: isRequired("Category"),
+  description: composeValidators(
+    isRequired("Description"),
+    hasLengthGreaterThan(4)({
+      message: "Description needs to be at least 5characters",
+    })
+  )(),
+  city: isRequired("City"),
+  venue: isRequired("Venue"),
+  date: isRequired("Date"),
+  time: isRequired("Time"),
+});
 interface DetailParams {
   id: string;
 }
@@ -26,61 +46,34 @@ const ActivityForm: React.FC<RouteComponentProps<DetailParams>> = ({
     createActivity,
     editActivity,
     submitting,
-    // cancelFormOpen,
-    activity: initialFormState,
     loadActivity,
-    clearActivity,
   } = activityStore;
 
-  const [activity, setActivity] = useState<IActivityFormValues>({
-    id: undefined,
-    title: "",
-    category: "",
-    description: "",
-    date: undefined,
-    time: undefined,
-    city: "",
-    venue: "",
-  });
+  const [activity, setActivity] = useState(new ActivityFormValues());
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (match.params.id && activity.id) {
-      loadActivity(match.params.id).then(
-        () => initialFormState && setActivity(initialFormState)
-      );
+    if (match.params.id) {
+      setLoading(true);
+      loadActivity(match.params.id)
+        .then((activity) => setActivity(new ActivityFormValues(activity)))
+        .finally(() => setLoading(false));
     }
-    return () => {
-      clearActivity();
-    };
-  }, [
-    loadActivity,
-    clearActivity,
-    match.params.id,
-    initialFormState,
-    activity.id,
-  ]);
+  }, [loadActivity, match.params.id]);
 
-  // const handleSubmit = () => {
-  //   if (activity.id.length === 0) {
-  //     let newActivity = {
-  //       ...activity,
-  //       id: uuid(),
-  //     };
-  //     createActivity(newActivity).then(() =>
-  //       history.push(`/activities/${newActivity.id}`)
-  //     );
-  //   } else {
-  //     editActivity(activity).then(() =>
-  //       history.push(`/activities/${activity.id}`)
-  //     );
-  //   }
-  //   // console.log(activity);
-  // };
   const handlFinalFormSubmit = (values: any) => {
     const dateAndTime = combineDateAndTime(values.date, values.time);
-    const {date,time, ...activity} = values; // activity object is all properties minus date and time
-    activity.date = dateAndTime
-    console.log(activity);
+    const { date, time, ...activity } = values; // activity object is all properties minus date and time
+    activity.date = dateAndTime;
+    if (!activity.id) {
+      let newActivity = {
+        ...activity,
+        id: uuid(),
+      };
+      createActivity(newActivity);
+    } else {
+      editActivity(activity);
+    }
   };
 
   return (
@@ -88,9 +81,11 @@ const ActivityForm: React.FC<RouteComponentProps<DetailParams>> = ({
       <Grid.Column width={10}>
         <Segment clearing>
           <FinalForm
+            validate={validate}
+            initialValues={activity}
             onSubmit={handlFinalFormSubmit}
-            render={({ handleSubmit }) => (
-              <Form onSubmit={handleSubmit}>
+            render={({ handleSubmit, invalid, pristine }) => (
+              <Form onSubmit={handleSubmit} loading={loading}>
                 <Field
                   name="title"
                   placeholder="Title"
@@ -143,12 +138,18 @@ const ActivityForm: React.FC<RouteComponentProps<DetailParams>> = ({
                 <Button
                   loading={submitting}
                   floated="right"
+                  disabled={loading || invalid || pristine}
                   positive
                   type="submit"
                   content="Submit"
                 />
                 <Button
-                  onClick={() => history.push("/activities")}
+                  onClick={
+                    activity.id
+                      ? () => history.push(`/activities/${activity.id}`)
+                      : () => history.push("/activities")
+                  }
+                  disabled={loading}
                   floated="right"
                   type="button"
                   color="red"
