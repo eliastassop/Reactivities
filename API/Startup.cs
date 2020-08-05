@@ -1,13 +1,22 @@
+using System.Text;
 using API.Middleware;
 using Application.Activities;
+using Application.Interfaces;
+using Domain;
 using FluentValidation.AspNetCore;
+using Infrastructure.Security;
 using MediatR;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.Tokens;
 using Persistence;
 
 namespace API
@@ -40,11 +49,47 @@ namespace API
                 });
             });
             services.AddMediatR(typeof(List.Handler).Assembly);
-            services.AddControllers()
+
+            // authorize controller methods with the opt inside addcontrolllers
+            services.AddControllers(opt => 
+            {
+                var policy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
+                opt.Filters.Add(new AuthorizeFilter(policy));
+            })
             .AddFluentValidation(cfg => 
             {
                 cfg.RegisterValidatorsFromAssemblyContaining<Create>();
             });
+
+            //configure identity in our project
+
+            var builder = services.AddIdentityCore<AppUser>();
+            var identityBuilder = new IdentityBuilder(builder.UserType, builder.Services);
+            identityBuilder.AddEntityFrameworkStores<DataContext>();
+            identityBuilder.AddSignInManager<SignInManager<AppUser>>();
+
+            services.AddAuthentication();
+
+            //jwt, add scoped so thats available for requests
+            //by adding as a services when we use IjwtGenerator and inject it to our constructors of our classes
+            // we will have access to it and the methods inside it,and  when we use IJwtGenerator
+            // we gonna be using the JwtGenerator concrete class that is available inside our infrastructure project
+
+            
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["TokenKey"])); // "super secret key"
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(opt =>
+            {
+                opt.TokenValidationParameters = new TokenValidationParameters{
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = key,
+                    ValidateAudience = false,
+                    ValidateIssuer = false
+                };
+            });
+            
+            services.AddScoped<IJwtGenerator, JwtGenerator>();
+            services.AddScoped<IUserAccessor, UserAccessor>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -60,7 +105,7 @@ namespace API
 
             // app.UseHttpsRedirection();
 
-            app.UseCors("CorsPolicy");
+            
             //.net core 3.0 code have to add below !!!
             // app.UseEndpoints(endpoints =>
             // {
@@ -68,7 +113,9 @@ namespace API
             // });
 
             app.UseRouting();
+            app.UseCors("CorsPolicy");
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>

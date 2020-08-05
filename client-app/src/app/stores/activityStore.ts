@@ -4,6 +4,7 @@ import { IActivity } from "../models/activity";
 import agent from "../api/agent";
 import { history } from "../..";
 import { toast } from "react-toastify";
+import { getDate } from "date-fns";
 // when i see proxy in console.log an array thats because they are observables
 configure({ enforceActions: "always" });
 
@@ -34,6 +35,10 @@ class ActivityStore {
     return Object.entries(
       sortedActivities.reduce((activities, activity) => {
         const date = activity.date.toISOString().split("T")[0];
+        //  date=
+        //  date.split("-")[0] +
+        //  date.split("-")[1] +
+        //  activity.date.getDate();
         activities[date] = activities[date]
           ? [...activities[date], activity]
           : [activity];
@@ -50,8 +55,7 @@ class ActivityStore {
       const activities = await agent.Activities.list();
       runInAction("loading activities", () => {
         activities.forEach((activity) => {
-          activity.date = new Date(activity.date);
-          // split on . then access the first part of the returned array to remove the time accuracy
+          activity.date = new Date(activity.date + "Z");
           this.activityRegistry.set(activity.id, activity);
         });
         this.loadingInitial = false;
@@ -76,7 +80,8 @@ class ActivityStore {
       try {
         activity = await agent.Activities.details(id);
         runInAction("getting activity", () => {
-          activity.date = new Date(activity.date);
+          activity.date = new Date(activity.date + "Z");
+          console.log(activity.date);
           this.activity = activity;
           this.activityRegistry.set(activity.id, activity);
           this.loadingInitial = false;
@@ -112,19 +117,21 @@ class ActivityStore {
       runInAction("create activity error", () => {
         this.submitting = false;
       });
-      toast.error('problem submitting data')
+      toast.error("problem submitting data");
       console.log(error);
     }
   };
 
   @action editActivity = async (activity: IActivity) => {
     this.submitting = true;
+
     try {
       await agent.Activities.update(activity);
       runInAction("editing activity", () => {
         this.activityRegistry.set(activity.id, activity);
         this.activity = activity;
         this.submitting = false;
+        console.log(activity.date);
       });
       history.push(`/activities/${activity.id}`);
     } catch (error) {
