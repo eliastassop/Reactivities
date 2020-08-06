@@ -1,14 +1,19 @@
-import { observable, action, computed, configure, runInAction } from "mobx";
-import { createContext, SyntheticEvent } from "react";
+import { observable, action, computed, runInAction } from "mobx";
+import { SyntheticEvent } from "react";
 import { IActivity } from "../models/activity";
 import agent from "../api/agent";
 import { history } from "../..";
 import { toast } from "react-toastify";
-import { getDate } from "date-fns";
-// when i see proxy in console.log an array thats because they are observables
-configure({ enforceActions: "always" });
 
-class ActivityStore {
+import { RootStore } from "./rootStore";
+// when i see proxy in console.log an array thats because they are observables
+
+export default class ActivityStore {
+  rootStore: RootStore;
+  constructor(rootStore: RootStore) {
+    this.rootStore = rootStore;
+  }
+
   @observable activityRegistry = new Map();
 
   @observable activity: IActivity | null = null;
@@ -168,8 +173,6 @@ class ActivityStore {
     }
   };
 }
-
-export default createContext(new ActivityStore());
 
 // REMOVED WHEN USED REACT ROUTER TO BROWSE AROUND DIF COMPONENTS
 // @action openCreateForm = () => {

@@ -15,6 +15,7 @@ namespace Application.User
         public class Handler : IRequestHandler<Query, User>
         {
             private readonly UserManager<AppUser> _userManager;
+             //private readonly RoleManager<AppUser> _roleManager;
             private readonly IJwtGenerator _jwtGenerator;
             private readonly IUserAccessor _userAccessor;
 
@@ -24,6 +25,7 @@ namespace Application.User
                 _userAccessor = userAccessor;
                 _jwtGenerator = jwtGenerator;
                 _userManager = userManager;
+                //_roleManager = roleManager;
 
 
             }
@@ -32,6 +34,7 @@ namespace Application.User
             , CancellationToken cancellationToken)
             {
                 var user = await _userManager.FindByNameAsync(_userAccessor.GetCurrentUsername());
+                
 
                 return new User {
                     DisplayName= user.DisplayName,
